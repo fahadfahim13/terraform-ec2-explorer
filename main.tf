@@ -1,71 +1,47 @@
 provider "aws" {
-  region = var.aws_region
+  region = "ap-southeast-2"
 }
 
-# Check if the IAM role exists
 data "aws_iam_role" "ec2_role" {
   name = "ec2_role"
-  count = 1
 }
 
 locals {
-  role_exists = length(data.aws_iam_role.ec2_role) > 0
+  role_name   = "ec2_role"
+  role_exists = try(aws_iam_role.ec2_role.name, null) != null
 }
 
 resource "aws_iam_role" "ec2_role" {
-  count = local.role_exists ? 0 : 1
-  name = "ec2_role"
-
+  name = local.role_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Sid    = ""
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
       }
-    ]
+    }]
   })
 }
 
 resource "aws_iam_role_policy" "ec2_policy" {
   name = "ec2_policy"
-  role = local.role_exists ? data.aws_iam_role.ec2_role[0].id : aws_iam_role.ec2_role[0].id
+  role = aws_iam_role.ec2_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "s3:*",
-        ]
-        Effect = "Allow"
-        Resource = "*"
-      },
-      {
-        Action = [
-          "dynamodb:*",
-        ]
-        Effect = "Allow"
-        Resource = "*"
-      },
-      {
-        Action = [
-          "lambda:*",
-        ]
-        Effect = "Allow"
-        Resource = "*"
-      }
-    ]
+    Statement = [{
+      Action   = ["s3:*", "dynamodb:*", "lambda:*"]
+      Effect   = "Allow"
+      Resource = "*"
+    }]
   })
-}   
+}
 
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "ec2_profile"
-  role = local.role_exists ? data.aws_iam_role.ec2_role[0].name : aws_iam_role.ec2_role[0].name
+  role = aws_iam_role.ec2_role.name
 }
 
 resource "aws_instance" "web" {
