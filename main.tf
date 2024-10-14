@@ -2,7 +2,19 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Check if the IAM role exists
+data "aws_iam_role" "existing_ec2_role" {
+  name = "ec2_role"
+  count = 0
+}
+
+locals {
+  role_exists = length(data.aws_iam_role.existing_ec2_role) > 0
+}
+
+
 resource "aws_iam_role" "ec2_role" {
+  count = local.role_exists ? 0 : 1
   name = "ec2_role"
 
   assume_role_policy = jsonencode({
@@ -22,7 +34,7 @@ resource "aws_iam_role" "ec2_role" {
 
 resource "aws_iam_role_policy" "ec2_policy" {
   name = "ec2_policy"
-  role = aws_iam_role.ec2_role.id
+  role = local.role_exists ? data.aws_iam_role.existing_ec2_role[0].id : aws_iam_role.ec2_role[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -54,7 +66,7 @@ resource "aws_iam_role_policy" "ec2_policy" {
 
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "ec2_profile"
-  role = aws_iam_role.ec2_role.name
+  role = local.role_exists ? data.aws_iam_role.existing_ec2_role[0].name : aws_iam_role.ec2_role[0].name
 }
 
 resource "aws_instance" "web" {
