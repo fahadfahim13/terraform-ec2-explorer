@@ -25,6 +25,15 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+    
+    - name: Check for existing IAM role
+      run: |
+        ROLE_NAME="ec2_role"
+        if aws iam get-role --role-name $ROLE_NAME; then
+          echo "IAM Role $ROLE_NAME already exists, skipping creation."
+        else
+          echo "IAM Role $ROLE_NAME does not exist, proceeding with creation."
+        fi
 
     - name: Terraform Init
       run: terraform init
